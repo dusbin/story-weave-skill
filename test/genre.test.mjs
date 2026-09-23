@@ -130,3 +130,32 @@ test('架空标尺说明包含三条边界（设定/人物仍按真人/不自相
   assert.ok(s.reason.includes('自相矛盾'), '应说明数量/时间不得自相矛盾');
   assert.ok(s.eraNote.includes('未指明'), '年代不明时应说明会跳过时代错位检查');
 });
+
+/* ------------------------------------------------------------------ 神话/咏史 */
+
+const POEM = `精卫衔微木，将以填沧海。
+刑天舞干戚，猛志固常在。
+同物既无虑，化去不复悔。
+徒设在昔心，良晨讵可待?`;
+
+test('神话/咏史：古诗中的神话语域应判为架空标尺', () => {
+  // 曾经的缺口：体裁表里没有神话一类，于是《读山海经》被判成"通用叙事 + 现实标尺"，
+  // 后面会把"人化为鸟""无头仍舞"当成违反现实常识来报。
+  const r = detectGenre(scanSegments(POEM));
+  assert.equal(r.primary, 'myth');
+  assert.equal(r.tier, 'speculative');
+  assert.ok(r.confidence > 0.8);
+  assert.ok(r.note.includes('神话'), '应说明神话语域不算常识错误');
+});
+
+test('神话体裁不误伤现实文本', () => {
+  const r = detectGenre(scanSegments('她加完班走出写字楼，地铁已经停了。手机响了。'));
+  assert.equal(r.tier, 'realistic');
+});
+
+test('每个体裁的 tier 都在枚举内（防止新增体裁写错）', () => {
+  for (const g of GENRES) {
+    assert.ok(['realistic', 'speculative'].includes(g.tier), `${g.key} 的 tier 非法：${g.tier}`);
+    assert.ok(g.keywords.length >= 8, `${g.key} 关键词太少，容易漏检`);
+  }
+});
