@@ -13,6 +13,7 @@ import {
   extractCharacters, extractNarrative, extractTimeline, extractPlaces,
   extractWorldRules, extractConflicts, extractFacts,
 } from '../lib/extract.mjs';
+import { extractVerseFacts, analyzeText } from '../lib/analyze.mjs';
 
 const REALISTIC = `三年前的冬天，林晚还是江城中心医院的一名实习医生。
 
@@ -201,4 +202,28 @@ test('冲突类型识别', () => {
 
 test('没有冲突信号时返回空数组', () => {
   assert.deepEqual(extractConflicts(scanSegments('他把杯子放在桌上。')), []);
+});
+
+/* ------------------------------------------------------------------ 诗歌锚点 */
+
+test('★ 诗歌：逐句立为事实锚点（散文的事件型锚点在诗里不存在）', () => {
+  // 诗句不含"死亡/年龄/职业/天气"这类事件模式词，事件型抽取结果为空，
+  // 于是硬约束表里只剩通用不变量，写作指令没有"不得改写什么"的具体依据。
+  const facts = extractVerseFacts(scanSegments(POEM));
+  assert.equal(facts.length, 4, `四个"顿"应各立一锚，实际 ${facts.length}`);
+  assert.ok(facts.every((f) => f.immutable === true));
+  assert.ok(facts.every((f) => f.label === '原文诗句'));
+  assert.ok(facts.every((f) => Number.isFinite(f.line)), '每句都要能指回行号');
+  // 第一节诗的第一句是第一行
+  assert.equal(facts[0].value, '精卫衔微木');
+  assert.equal(facts[0].line, 1);
+});
+
+test('诗歌锚点只对韵文类文本生效，散文仍用事件型锚点', () => {
+  const poem = analyzeText({ raw: '精卫衔微木，将以填沧海。\n刑天舞干戚，猛志固常在。' });
+  assert.ok(poem.facts.every((f) => f.kind === 'verse'), '韵文应逐句立锚');
+
+  const prose = analyzeText({ raw: '哥哥十五岁就离开了家。母亲一直不肯提起他。' });
+  assert.ok(prose.facts.some((f) => f.kind === 'age'), '散文应抽出事件型锚点');
+  assert.ok(!prose.facts.some((f) => f.kind === 'verse'), '散文不该逐句立锚');
 });
