@@ -248,3 +248,31 @@ test('篇幅档位定义完整', () => {
     assert.ok(v.label && v.sections > 0 && v.targetChars > 0 && v.desc);
   }
 });
+
+test('★ 缩小节数时必须保住各模式的结构支点', () => {
+  // 曾经的 bug：缩小节数用无差别等距抽样，于是「前传」缩到 4 节时，
+  // 支点「无法回头的一刻」被静默丢掉——而前传的成立恰恰靠那一步的不可逆。
+  const must = {
+    prequel: '无法回头的一刻',
+    expand: '临界时刻',
+    continue: '选择与后果',
+    spinoff: '一个小冲突',
+    whatif: '分叉点重演：变量取新值',
+    adapt: '代价与选择',
+  };
+  for (const [mode, title] of Object.entries(must)) {
+    for (const n of [3, 4, 5]) {
+      const beats = buildBeats(mode, { sections: n, protagonist: '精卫', branchVariable: 'x' });
+      assert.equal(beats.length, n);
+      assert.ok(beats.some((b) => b.title === title),
+        `${mode} 缩到 ${n} 节时丢失了支点「${title}」：${beats.map((b) => b.title).join(' → ')}`);
+    }
+  }
+});
+
+test('缩小节数后节拍仍按原叙事顺序排列', () => {
+  const beats = buildBeats('prequel', { sections: 4, protagonist: '精卫' });
+  assert.equal(beats[0].title, '更早的常态');
+  assert.equal(beats[beats.length - 1].title, '接上原文开头');
+  assert.deepEqual(beats.map((b) => b.index), [1, 2, 3, 4]);
+});
