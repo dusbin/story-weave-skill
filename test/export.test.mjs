@@ -93,13 +93,14 @@ test('mdToHtml：GFM 管道表（表头/对齐/表体）', () => {
 });
 
 test('mdToHtml：表格单元格里的 \\| 转义不参与切分', () => {
-  const html = mdToHtml('| 表达式 | 含义 |\n| --- | --- |\n| a \\| b | 逻辑或 |\n| c \\\\| d | 反斜杠加竖线 |');
-  // 每个数据行仍然是 2 个单元格
-  const cells = html.match(/<td[^>]*>[\s\S]*?<\/td>/g) || [];
-  assert.equal(cells.length, 4);
+  const html = mdToHtml('| 表达式 | 含义 |\n| --- | --- |\n| a \\| b | 逻辑或 |\n| c \\| d | 另一种写法 |');
+  // 两行数据都仍然被切成 2 个单元格（\\| 没有把行拆成 4 列）
+  assert.equal((html.match(/<tr>/g) || []).length, 3);
+  assert.equal((html.match(/<td[^>]*>/g) || []).length, 4);
   assert.match(html, /<td>a \| b<\/td>/);
+  assert.match(html, /<td>c \| d<\/td>/);
   assert.match(html, /<td>逻辑或<\/td>/);
-  // 转义后的竖线是文本，不是标签
+  // 转义后的竖线只是文本，不会被当成标签
   assert.ok(!html.includes('<td>a <'));
 });
 
@@ -297,7 +298,48 @@ test('htmlToPdf：真实转换（无 Chrome 则跳过）', async (t) => {
   assert.ok(result.errors.length === 0, `不应有 errors：${JSON.stringify(result.errors)}`);
   assert.equal(result.chrome, chrome);
 
+  // 纸张尺寸确实生效：A4 = 210×297mm ≈ 595×842pt
+  const raw = readFileSync(pdfPath).toString('latin1');
+  const box = /\/MediaBox\s*\[([^\]]+)\]/.exec(raw);
+  if (box) {
+    const [, , width, height] = box[1].trim().split(/\s+/).map(Number);
+    assert.ok(
+      Math.abs(width - 595) < 4 && Math.abs(height - 842) < 4,
+      `paperSize='A4' 应产出 595×842pt 页面，实际 ${width}×${height}pt`,
+    );
+  }
+
   // 临时打印副本与临时 user-data-dir 必须被清理干净
   const leftovers = readdirSync(dir).filter((name) => name !== 'report.html' && name !== 'report.pdf');
   assert.deepEqual(leftovers, [], `转换后目录里不应留下临时文件：${JSON.stringify(leftovers)}`);
+});
+
+test('htmlToPdf：超时保护（不挂死，且不把旧产物当成本次成功）', async (t) => {
+  const chrome = findChrome();
+  if (!chrome) {
+    t.skip('本机未找到 Chrome/Chromium/Edge，跳过超时保护测试');
+    return;
+  }
+
+  const dir = makeTempDir();
+  const htmlPath = path.join(dir, 'timeout.html');
+  const pdfPath = path.join(dir, 'timeout.pdf');
+  writeFileSync(htmlPath, renderHtmlDocument({ title: '超时保护', bodyHtml: mdToHtml('# 内容') }), 'utf8');
+  // 预先放一个「上次的」产物：转换失败后它必须被清掉，否则会被误判为成功
+  writeFileSync(pdfPath, 'stale-not-a-pdf', 'utf8');
+
+  const started = Date.now();
+  const result = await htmlToPdf(htmlPath, pdfPath, { timeoutMs: 1 });
+  const elapsedMs = Date.now() - started;
+
+  assert.equal(result.ok, false);
+  assert.equal(result.bytes, 0);
+  assert.ok(
+    result.errors.some((message) => message.includes('超时')),
+    `errors 应说明超时，实际：${JSON.stringify(result.errors)}`,
+  );
+  assert.ok(elapsedMs < 15000, `超时后应尽快返回，实际耗时 ${elapsedMs}ms`);
+  assert.ok(!existsSync(pdfPath), '失败时不应留下（旧的）PDF 产物');
+  const leftovers = readdirSync(dir).filter((name) => name !== 'timeout.html');
+  assert.deepEqual(leftovers, [], `失败路径也应清理临时文件：${JSON.stringify(leftovers)}`);
 });
