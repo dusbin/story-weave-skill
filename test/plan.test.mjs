@@ -14,7 +14,7 @@ import {
   buildConfirmationQuestions, buildChanges, buildConstraints, summarizePlan,
 } from '../lib/plan.mjs';
 import { validatePlan } from '../lib/schema.mjs';
-import { SCALE } from '../lib/modes.mjs';
+import { SCALE, MODE_DEFS } from '../lib/modes.mjs';
 
 const SRC = `三年前的冬天，林晚还是江城中心医院的一名实习医生。
 
@@ -263,5 +263,28 @@ test('buildConstraints 的约束条目都带 id 与出处标记', () => {
   assert.ok(k.mustNotViolate.length > 0);
   for (const c of k.mustNotViolate) {
     assert.ok(c.id && c.statement && c.source && c.ruleRef && c.severity);
+  }
+});
+
+test('★ 模式不变量必须是通用表述，不得含任何样例专属的人名/数字', () => {
+  // 曾经的 bug：前传不变量里写死了"哥哥十五岁离开家"作为例子，
+  // 而这段文本会被注进 plan.constraints 给每一次前传演绎看——
+  // 给一首古诗做前传时，硬约束表里冒出一句与本文毫不相干的示例。
+  const banned = /哥哥|林晚|十五岁|手术|江城|中心医院|苏明/;
+  for (const m of MODE_DEFS) {
+    for (const inv of m.invariants) {
+      assert.ok(!banned.test(inv), `${m.key} 的不变量含样例专属内容：${inv.slice(0, 60)}`);
+    }
+    // guide 也会进写作指令，同样要通用
+    assert.ok(!banned.test(m.guide ?? ''), `${m.key} 的 guide 含样例专属内容`);
+  }
+});
+
+test('模式不变量对任意题材都成立（含古诗题材）', () => {
+  const poemAn = analyzeText({ raw: '精卫衔微木，将以填沧海。\n刑天舞干戚，猛志固常在。' });
+  for (const m of MODE_DEFS) {
+    const p = buildPlan({ analysis: poemAn, mode: m.key });
+    const text = p.constraints.mustNotViolate.map((k) => k.statement).join(' ');
+    assert.ok(!/哥哥|林晚|十五岁/.test(text), `${m.key} 的方案里混入了无关样例：${text.slice(0, 80)}`);
   }
 });
