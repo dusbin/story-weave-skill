@@ -1,0 +1,44 @@
+{
+  "name": "story-weave-skill",
+  "version": "0.1.0",
+  "description": "story-weave 故事演绎技能：分析输入文本 → 人工确认演绎方向与修改点 → 演绎出符合常识的完整故事。内置现实/幻想双标尺常识规则库与内部设定一致性校验，产物统一输出 markdown / html / pdf / json 四种格式。零 npm 依赖。",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "sw": "scripts/sw.mjs",
+    "sw-analyze": "scripts/sw-analyze.mjs",
+    "sw-plan": "scripts/sw-plan.mjs",
+    "sw-confirm": "scripts/sw-confirm.mjs",
+    "sw-weave": "scripts/sw-weave.mjs",
+    "sw-check": "scripts/sw-check.mjs",
+    "sw-render": "scripts/sw-render.mjs",
+    "sw-modes": "scripts/sw-modes.mjs",
+    "sw-rules": "scripts/sw-rules.mjs",
+    "sw-verify": "scripts/sw-verify.mjs"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "demo": "node examples/run-demo.mjs",
+    "selfcheck": "node scripts/sw.mjs selfcheck"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {},
+  "keywords": [
+    "skill",
+    "story",
+    "story-weave",
+    "演绎",
+    "扩写",
+    "续写",
+    "前传",
+    "改编",
+    "番外",
+    "what-if",
+    "commonsense",
+    "常识校验",
+    "consistency"
+  ],
+  "license": "MIT"
+}
