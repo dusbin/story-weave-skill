@@ -288,3 +288,16 @@ test('模式不变量对任意题材都成立（含古诗题材）', () => {
     assert.ok(!/哥哥|林晚|十五岁/.test(text), `${m.key} 的方案里混入了无关样例：${text.slice(0, 80)}`);
   }
 });
+
+test('未识别出冲突时，logline 不得输出占位符', () => {
+  // 曾经的 bug：直接写 `?? '未明确的冲突'`，于是「核心冲突：未明确的冲突」
+  // 会原样进到正文页眉与交付文档——把占位符当内容输出。
+  const poemAn = analyzeText({ raw: '精卫衔微木，将以填沧海。\n刑天舞干戚，猛志固常在。' });
+  const p = buildPlan({ analysis: poemAn, mode: 'prequel' });
+  assert.ok(!p.logline.includes('未明确'), `logline 里漏出了占位符：${p.logline}`);
+  assert.ok(!p.logline.includes('undefined'));
+  // 有冲突时仍要写出来
+  const proseAn = analyzeText({ raw: SRC });
+  const p2 = buildPlan({ analysis: proseAn });
+  assert.ok(p2.logline.includes('篇幅'));
+});
