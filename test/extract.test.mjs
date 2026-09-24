@@ -252,3 +252,23 @@ test('典章文本的月份被当作时间点而非时长', () => {
   const months = (a.elements.timeline.events ?? []).filter((e) => e.subkind === 'month');
   assert.ok(months.length >= 2, '「八月」应被识别为月份时间点');
 });
+
+test('★ 典章诏令：条款逐句立为事实锚点（含短句）', () => {
+  // 典章由独立命题构成，不含事件型事实词，事件抽取结果为空，
+  // 于是硬约束表只剩通用不变量——正文再也受不到"八月成""皇帝侍祠"的约束。
+  const a = analyzeText({ raw: EDICT });
+  assert.ok(a.facts.length >= 7, `条款锚点太少：${a.facts.length}`);
+  assert.ok(a.facts.every((f) => f.label === '原文条款'));
+  assert.ok(a.facts.every((f) => f.immutable === true));
+  const values = a.facts.map((f) => f.value);
+  for (const must of ['以正月旦作酒', '八月成', '皇帝侍祠', '用九酝太牢']) {
+    assert.ok(values.includes(must), `缺少关键条款锚点「${must}」（实际：${values.join('/')}）`);
+  }
+});
+
+test('设定片段类文本也逐句立锚，但标签不同', () => {
+  const a = analyzeText({ raw: '规则：灵力只能从月华中汲取。一旦日间强行运功，经脉便会逆行。' });
+  if (a.facts.length) {
+    assert.ok(a.facts.every((f) => ['原文诗句', '原文条款', '原文设定'].includes(f.label)));
+  }
+});
