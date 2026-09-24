@@ -238,3 +238,15 @@ test('clip 压缩空白并截断', () => {
   assert.equal(clip('  a   b  '), 'a b');
   assert.ok(clip('一'.repeat(200), 10).endsWith('…'));
 });
+
+test('★ 回归：裸「X月」是月份，不是时长', () => {
+  // 曾经的 bug：把「八月」当成"8 个月" = 240 天。
+  // 典章文本里「以正月旦作酒，八月成」指的是第八个月，时间线会整体跑偏。
+  assert.equal(parseDuration('八月成'), null, '「八月成」不应被解析为时长');
+  assert.equal(parseDuration('至八月'), null);
+  assert.equal(parseDuration('正月旦作酒'), null, '「正月」同样不是时长');
+  // 时长的规范写法带「个」
+  assert.equal(parseDuration('八个月')?.hours, 8 * 30 * 24);
+  assert.equal(parseDuration('三个月')?.hours, 3 * 30 * 24);
+  assert.equal(parseDuration('半个月')?.hours, 0.5 * 30 * 24);
+});

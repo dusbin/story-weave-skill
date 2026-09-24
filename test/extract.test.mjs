@@ -227,3 +227,28 @@ test('诗歌锚点只对韵文类文本生效，散文仍用事件型锚点', ()
   assert.ok(prose.facts.some((f) => f.kind === 'age'), '散文应抽出事件型锚点');
   assert.ok(!prose.facts.some((f) => f.kind === 'verse'), '散文不该逐句立锚');
 });
+
+/* ------------------------------------------------------------------ 典章诏令 */
+
+const EDICT = '制：宗庙八月饮酎，用九酝太牢，皇帝侍祠。以正月旦作酒，八月成，名曰酎，一曰九酝，一名醇酎。';
+
+test('★ 典章诏令不得被判成对话记录', () => {
+  // 曾经的 bug：dialogue_log 只判"开头若干字 + 冒号"，
+  // 于是「制：」被当成说话人，整条诏令判成对话记录，还要给它找"台词"。
+  const a = analyzeText({ raw: EDICT });
+  assert.equal(a.textType.primary, 'document', `实际：${a.textType.primary}`);
+  assert.equal(a.textType.label, '典章/诏令');
+});
+
+test('真正的对话记录仍能被识别', () => {
+  const a = analyzeText({ raw: '林晚：血库还有多少？\n主任：两个单位。\n林晚：不够。\n主任：等血站调。' });
+  assert.equal(a.textType.primary, 'dialogue_log');
+});
+
+test('典章文本的月份被当作时间点而非时长', () => {
+  const a = analyzeText({ raw: EDICT });
+  const durations = (a.elements.timeline.events ?? []).filter((e) => e.kind === 'duration');
+  assert.deepEqual(durations, [], `「八月」不应产生时长事件：${JSON.stringify(durations.map((d) => d.when))}`);
+  const months = (a.elements.timeline.events ?? []).filter((e) => e.subkind === 'month');
+  assert.ok(months.length >= 2, '「八月」应被识别为月份时间点');
+});

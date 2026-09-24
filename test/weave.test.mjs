@@ -276,3 +276,29 @@ test('缩小节数后节拍仍按原叙事顺序排列', () => {
   assert.equal(beats[beats.length - 1].title, '接上原文开头');
   assert.deepEqual(beats.map((b) => b.index), [1, 2, 3, 4]);
 });
+
+test('★ 骨架里不得出现字面 undefined / null / 空引号', () => {
+  // 曾经的 bug：骨架直接插值 ctx.protagonist 与 ctx.first/lastQuote，
+  // `sw modes` 预览（不带分析结果）时打印出 beat 标题「undefined的处境与想要的东西」。
+  // 补兜底时又踩了第二个坑：用 `??` 挡不住空字符串，于是输出了空引号「」。
+  for (const m of MODE_DEFS) {
+    for (const n of [4, 6, 8, 16]) {
+      const text = buildBeats(m.key, { sections: n })
+        .map((b) => `${b.title} ${b.guidance}`).join(' ');
+      for (const bad of ['undefined', 'null', 'NaN']) {
+        assert.ok(!text.includes(bad), `${m.key}(${n}) 骨架含字面 ${bad}：${text.slice(0, 70)}`);
+      }
+      assert.ok(!/「」/.test(text), `${m.key}(${n}) 骨架含空引号`);
+    }
+  }
+});
+
+test('★ 预览骨架时缺少上下文也要给出可读的兜底文案', () => {
+  const beats = buildBeats('expand', { sections: 8 });
+  const second = beats[1];
+  assert.ok(second.title.includes('主角'), `标题应含兜底主语，实际：${second.title}`);
+  const cont = buildBeats('continue', { sections: 8 })[0];
+  assert.ok(cont.guidance.includes('原文结尾'), '承接拍应给出兜底引用');
+  const pre = buildBeats('prequel', { sections: 8 });
+  assert.ok(pre[pre.length - 1].guidance.includes('原文第一句'), '前传收尾拍应给出兜底引用');
+});
